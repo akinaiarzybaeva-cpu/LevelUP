@@ -1,0 +1,155 @@
+:root {
+  --font-ui: 'Inter', 'Segoe UI', Arial, sans-serif;
+  --bg: #edf6ff;
+  --bg-alt: #e9f4ff;
+  --card: #ffffff;
+  --card-soft: rgba(255, 255, 255, 0.86);
+  --card-elevated: rgba(255, 255, 255, 0.94);
+  --panel: rgba(244, 249, 255, 0.9);
+  --accent: #5a6ef7;
+  --accent-soft: #7a8cff;
+  --text: #17263e;
+  --muted: #53657f;
+  --muted-strong: #4a5a73;
+  --heading: #0f1d34;
+  --border: rgba(90, 109, 164, 0.16);
+  --shadow: 0 18px 42px rgba(16, 32, 58, 0.08);
+  --chip: rgba(90, 110, 247, 0.09);
+  --surface: rgba(255, 255, 255, 0.92);
+  --surface-soft: rgba(230, 240, 255, 0.88);
+  --surface-contrast: rgba(90, 110, 247, 0.12);
+  --overlay: rgba(15, 23, 42, 0.28);
+  --input-bg: rgba(255, 255, 255, 0.9);
+  --button-text: #ffffff;
+  --link-color: #4057d6;
+  --success: #0e8f6d;
+  --danger: #d44d64;
+  --tag-text: #2a3d9d;
+  --badge-text: #17263e;
+  --code-text: #20304d;
+  --kicker-strong: #4a5fe4;
+  --star-color: #f4b740;
+  --success-soft: rgba(16, 185, 129, 0.14);
+  --danger-soft: rgba(217, 77, 100, 0.12);
+  --danger-border: rgba(217, 77, 100, 0.2);
+  --success-border: rgba(16, 185, 129, 0.22);
+  --theme-transition: 0.3s ease;
+  font-family: var(--font-ui);
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--text);
+  background: var(--bg);
+  color-scheme: light;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root[data-theme="dark"] {
+  --bg: #071a2a;
+  --bg-alt: #0d2238;
+  --card: #12263f;
+  --card-soft: rgba(18, 38, 63, 0.9);
+  --card-elevated: rgba(9, 22, 36, 0.92);
+  --panel: rgba(10, 24, 38, 0.92);
+  --accent: #7a8dff;
+  --accent-soft: #9caeff;
+  --text: #ecf4ff;
+  --muted: #d0dff8;
+  --muted-strong: #e2ebff;
+  --heading: #ffffff;
+  --border: rgba(144, 165, 214, 0.18);
+  --shadow: 0 18px 42px rgba(2, 8, 18, 0.45);
+  --chip: rgba(124, 146, 255, 0.12);
+  --surface: rgba(12, 27, 44, 0.94);
+  --surface-soft: rgba(14, 31, 50, 0.88);
+  --surface-contrast: rgba(122, 141, 255, 0.18);
+  --overlay: rgba(2, 6, 23, 0.62);
+  --input-bg: rgba(11, 18, 28, 0.92);
+  --button-text: #f8fbff;
+  --link-color: #edf3ff;
+  --success: #a2f0d0;
+  --danger: #ff9eb0;
+  --tag-text: #eef3ff;
+  --badge-text: #071a2a;
+  --code-text: #edf3ff;
+  --kicker-strong: #eef3ff;
+  --star-color: #ffd166;
+  --success-soft: rgba(122, 240, 187, 0.14);
+  --danger-soft: rgba(255, 158, 176, 0.12);
+  --danger-border: rgba(255, 158, 176, 0.24);
+  --success-border: rgba(125, 211, 252, 0.22);
+  color-scheme: dark;
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  scroll-behavior: smooth;
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: radial-gradient(circle at top left, rgba(85, 133, 255, 0.18), transparent 22%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-alt) 100%);
+  font-family: var(--font-ui);
+  color: var(--text);
+  overflow-x: hidden;
+  transition: background-color var(--theme-transition), color var(--theme-transition);
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  cursor: pointer;
+}
+
+#root {
+  min-height: 100vh;
+  width: 100%;
+}
+
+p,
+h1,
+h2,
+h3,
+h4,
+ul,
+ol {
+  margin-top: 0;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+a,
+button,
+span {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
