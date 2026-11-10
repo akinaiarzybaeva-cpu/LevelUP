@@ -13,6 +13,7 @@ const LANGUAGE_STORAGE_KEY = "levelup-language";
 const THEME_STORAGE_KEY = "levelup-theme";
 const USER_STORAGE_KEY = "studypro_user";
 const AUTH_TOKENS_STORAGE_KEY = "studypro_auth_tokens";
+const ADMIN_SESSION_STORAGE_KEY = "studypro_admin_session";
 const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL
   || (typeof window !== "undefined" ? `${window.location.origin}/api` : "/api")
@@ -199,6 +200,8 @@ const normalizeUserProfile = (userData) => {
     registrationDate: userData.registrationDate || new Date().toISOString(),
     language: userData.language || getInitialLanguage(),
     theme: userData.theme || "light",
+    role: userData.role || "member",
+    isAdmin: Boolean(userData.isAdmin || userData.role === "admin" || userData.is_staff || userData.is_superuser),
   };
 
   return isProfileComplete(normalizedUser) ? normalizedUser : null;
@@ -530,6 +533,7 @@ function App() {
   const t = locale.ui;
   const content = locale.content;
   const isAuthenticated = Boolean(user && isProfileComplete(user));
+  const isCurrentUserAdmin = Boolean(user?.isAdmin || user?.role === "admin" || user?.is_staff || user?.is_superuser);
 
   const {
     courseCatalog,
@@ -2041,8 +2045,9 @@ function App() {
   const renderCommonHeader = ({ navItems, showAuthActions = false, showBackToHome = false }) => {
     const loggedInHeader = showBackToHome || route === ROUTE_MEMBER_HOME;
     const navLinkItems = navItems.filter((item) => item && item.href && item.label && item.label !== t.home && item.label !== t.logout && item.label !== t.exit);
-    const visibleNavItems = loggedInHeader ? navLinkItems : navLinkItems;
+    const visibleNavItems = navLinkItems;
     const logoutMenuLabel = t.exit || t.logout;
+    const adminMenuLabel = "Admin Panel";
 
     return (
       <header className={`site-header ${route === ROUTE_MEMBER_HOME ? "dashboard-header" : ""} ${loggedInHeader ? "logged-in-header" : ""}`.trim()}>
@@ -2074,6 +2079,20 @@ function App() {
                 {item.label}
               </a>
             ))}
+
+            {isCurrentUserAdmin ? (
+              <button
+                type="button"
+                className="profile-menu-item admin-link"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  navigateTo(ROUTE_ADMIN);
+                }}
+              >
+                <span aria-hidden="true">🛡️</span>
+                {adminMenuLabel}
+              </button>
+            ) : null}
 
             {loggedInHeader ? (
               <button
@@ -2130,6 +2149,13 @@ function App() {
                   ))}
                 </select>
               </label>
+
+              {isCurrentUserAdmin ? (
+                <button type="button" className="secondary-btn admin-link-btn" onClick={() => navigateTo(ROUTE_ADMIN)}>
+                  <span aria-hidden="true">🛡️</span>
+                  {adminMenuLabel}
+                </button>
+              ) : null}
 
               {loggedInHeader ? (
                 <button type="button" className="secondary-btn" onClick={() => navigateTo(ROUTE_PUBLIC_HOME)}>
