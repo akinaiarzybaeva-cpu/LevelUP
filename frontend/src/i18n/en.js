@@ -1,12 +1,17 @@
-const buildCourseLessons = (courseId, topics, lessonLabel, minutesUnit, iconSet = ["📘", "🧠", "🎯", "🛠️", "📚"]) =>
-  topics.map((topic, index) => ({
-    id: `${courseId}-${index + 1}`,
-    title: lessonLabel.replace("{number}", String(index + 1)),
-    description: topic,
-    duration: `${7 + ((index * 3) % 12)} ${minutesUnit}`,
-    icon: iconSet[index % iconSet.length],
-    status: index < 4 ? "completed" : index < 8 ? "in-progress" : "not-started",
-  }));
+import { getLessonIconName } from "../data/lessonIcons.js";
+
+const buildCourseLessons = (courseId, topics, lessonLabel, minutesUnit) =>
+  topics.map((topic, index) => {
+    const lessonId = `${courseId}-${index + 1}`;
+    return {
+      id: lessonId,
+      title: lessonLabel.replace("{number}", String(index + 1)),
+      description: topic,
+      duration: `${7 + ((index * 3) % 12)} ${minutesUnit}`,
+      icon: getLessonIconName(lessonId),
+      status: index < 4 ? "completed" : index < 8 ? "in-progress" : "not-started",
+    };
+  });
 
 const localeEn = {
   code: "en",
@@ -117,7 +122,7 @@ const localeEn = {
     password: "Password",
     confirmPassword: "Confirm password",
     enterEmail: "you@example.com",
-    enterPassword: "At least 6 characters",
+    enterPassword: "At least 8 characters",
     reEnterPassword: "Re-enter your password",
     forgotPassword: "Forgot password?",
     createAccount: "Create account →",
@@ -125,10 +130,16 @@ const localeEn = {
     alreadyHave: "Already have an account?",
     needAccount: "Need an account?",
     accountNotFound: "Account not found. Please create an account first.",
-    invalidPassword: "Incorrect password. Please try again.",
-    passwordTooShort: "Password must be at least 6 characters long.",
+    invalidPassword: "Incorrect email or password.",
+    passwordTooShort: "Password must be at least 8 characters long.",
     passwordsMismatch: "Passwords do not match. Please try again.",
     nameRequired: "Please enter your full name.",
+    invalidEmailFormat: "Please enter a valid email address.",
+    emailAlreadyRegistered: "This email is already registered. Please log in to your account.",
+    registrationFailed: "Unable to create account. Please check your data.",
+    loginFailed: "Account created, but sign-in failed. Please try logging in.",
+    profileLoadError: "Signed in, but failed to load profile data.",
+    networkError: "Unable to connect to server. Please try again.",
     recoveryPrompt: "Enter your email to receive recovery instructions.",
     resetSuccess: "Password reset instructions will be sent to",
     register: "Register",
@@ -298,7 +309,7 @@ const localeEn = {
           "Scientific measurement and uncertainty.",
           "Physics in technology and engineering design.",
           "Final review and applied experiment tasks.",
-        ], "Lesson {number}", "min", ["🏎️", "🔧", "⚡", "📈", "🔬"]),
+        ], "Lesson {number}", "min"),
         level: "Intermediate",
         accent: "orange",
       },
@@ -330,7 +341,7 @@ const localeEn = {
           "Reviewing grammar through practice exercises.",
           "Speaking fluency through guided role-play.",
           "Final language review and confidence practice.",
-        ], "Lesson {number}", "min", ["🗣️", "📚", "🎧", "✍️", "🧠"]),
+        ], "Lesson {number}", "min"),
         level: "Beginner",
         accent: "cyan",
       },
@@ -362,7 +373,7 @@ const localeEn = {
           "Reading and writing practice routines.",
           "Cultural context and language importance.",
           "Final reflection, writing, and practice tasks.",
-        ], "Lesson {number}", "min", ["🔤", "💬", "📖", "✍️", "📝"]),
+        ], "Lesson {number}", "min"),
         level: "Beginner",
         accent: "green",
       },
@@ -394,7 +405,7 @@ const localeEn = {
           "Dialogue practice in real situations.",
           "Grammar and vocabulary revision.",
           "Final conversational practice.",
-        ], "Lesson {number}", "min", ["👋", "🧾", "🎙️", "✍️", "🗣️"]),
+        ], "Lesson {number}", "min"),
         level: "Intermediate",
         accent: "red",
       },
@@ -426,7 +437,7 @@ const localeEn = {
           "Project-based AI application planning.",
           "Practical safety and privacy principles.",
           "Final AI project review and reflection.",
-        ], "Lesson {number}", "min", ["🧠", "💡", "🛠️", "⚖️", "📊"]),
+        ], "Lesson {number}", "min"),
         level: "Intermediate",
         accent: "pink",
       },
@@ -458,7 +469,7 @@ const localeEn = {
           "Design critique and improvement workshops.",
           "Responsive polish for tablet and desktop layouts.",
           "Final design review and project showcase.",
-        ], "Lesson {number}", "min", ["🎨", "📐", "🔠", "📱", "✨"]),
+        ], "Lesson {number}", "min"),
         level: "Beginner",
         accent: "gold",
       },

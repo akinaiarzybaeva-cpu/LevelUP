@@ -1,12 +1,17 @@
-const buildCourseLessons = (courseId, topics, lessonLabel, minutesUnit, iconSet = ["📘", "🧠", "🎯", "🛠️", "📚"]) =>
-  topics.map((topic, index) => ({
-    id: `${courseId}-${index + 1}`,
-    title: lessonLabel.replace("{number}", String(index + 1)),
-    description: topic,
-    duration: `${7 + ((index * 3) % 12)} ${minutesUnit}`,
-    icon: iconSet[index % iconSet.length],
-    status: index < 4 ? "completed" : index < 8 ? "in-progress" : "not-started",
-  }));
+import { getLessonIconName } from "../data/lessonIcons.js";
+
+const buildCourseLessons = (courseId, topics, lessonLabel, minutesUnit) =>
+  topics.map((topic, index) => {
+    const lessonId = `${courseId}-${index + 1}`;
+    return {
+      id: lessonId,
+      title: lessonLabel.replace("{number}", String(index + 1)),
+      description: topic,
+      duration: `${7 + ((index * 3) % 12)} ${minutesUnit}`,
+      icon: getLessonIconName(lessonId),
+      status: index < 4 ? "completed" : index < 8 ? "in-progress" : "not-started",
+    };
+  });
 
 const localeRu = {
   code: "ru",
@@ -205,7 +210,7 @@ const localeRu = {
     password: "Пароль",
     confirmPassword: "Подтвердите пароль",
     enterEmail: "you@example.com",
-    enterPassword: "Не менее 6 символов",
+    enterPassword: "Не менее 8 символов",
     reEnterPassword: "Повторите пароль",
     forgotPassword: "Забыли пароль?",
     createAccount: "Создать аккаунт →",
@@ -213,10 +218,16 @@ const localeRu = {
     alreadyHave: "Уже есть аккаунт?",
     needAccount: "Нужен аккаунт?",
     accountNotFound: "Аккаунт не найден. Сначала создайте аккаунт.",
-    invalidPassword: "Неверный пароль. Попробуйте еще раз.",
-    passwordTooShort: "Пароль должен содержать не менее 6 символов.",
+    invalidPassword: "Неверный email или пароль.",
+    passwordTooShort: "Пароль должен содержать не менее 8 символов.",
     passwordsMismatch: "Пароли не совпадают. Попробуйте ещё раз.",
     nameRequired: "Пожалуйста, введите ваше полное имя.",
+    invalidEmailFormat: "Введите корректный email.",
+    emailAlreadyRegistered: "Этот электронный адрес уже зарегистрирован. Войдите в свой аккаунт.",
+    registrationFailed: "Не удалось создать аккаунт. Проверьте введённые данные.",
+    loginFailed: "Аккаунт создан, но вход не выполнен. Попробуйте войти снова.",
+    profileLoadError: "Вход выполнен, но не удалось загрузить профиль.",
+    networkError: "Не удалось подключиться к серверу. Попробуйте снова.",
     recoveryPrompt: "Введите email, чтобы получить инструкции по восстановлению.",
     resetSuccess: "Инструкции по сбросу пароля будут отправлены на",
     register: "Регистрация",
@@ -405,7 +416,7 @@ const localeRu = {
           "Научные измерения и неопределенность.",
           "Физика в технологиях и инженерии.",
           "Финальное повторение и прикладные эксперименты.",
-        ], "Урок {number}", "мин", ["🏎️", "🔧", "⚡", "📈", "🔬"]),
+        ], "Урок {number}", "мин"),
         level: "Средний",
         accent: "orange",
       },
@@ -437,7 +448,7 @@ const localeRu = {
           "Повторение грамматики через практику.",
           "Разговорная беглость через ролевые упражнения.",
           "Финальное повторение и закрепление уверенности.",
-        ], "Урок {number}", "мин", ["🗣️", "📚", "🎧", "✍️", "🧠"]),
+        ], "Урок {number}", "мин"),
         level: "Начальный",
         accent: "cyan",
       },
@@ -469,7 +480,7 @@ const localeRu = {
           "Переиспользуемые классы и масштабируемая структура стилей.",
           "Поиск и исправление проблем макета в DevTools.",
           "Итоговый проект: адаптивная страница с Flexbox и Grid.",
-        ], "Урок {number}", "мин", ["🔤", "💬", "📖", "✍️", "📝"]),
+        ], "Урок {number}", "мин"),
         level: "Начальный",
         accent: "green",
       },
@@ -501,7 +512,7 @@ const localeRu = {
           "Создание интерактивных UI-компонентов на JavaScript.",
           "Организация кода, модули и отладка в DevTools.",
           "Итоговый проект: динамическое веб-приложение с DOM и API.",
-        ], "Урок {number}", "мин", ["👋", "🧾", "🎙️", "✍️", "🗣️"]),
+        ], "Урок {number}", "мин"),
         level: "Средний",
         accent: "red",
       },
@@ -533,7 +544,7 @@ const localeRu = {
           "Проектирование прикладных ИИ-проектов.",
           "Практические принципы безопасности и приватности.",
           "Финальный обзор ИИ-проекта и рефлексия.",
-        ], "Урок {number}", "мин", ["🧠", "💡", "🛠️", "⚖️", "📊"]),
+        ], "Урок {number}", "мин"),
         level: "Средний",
         accent: "pink",
       },
@@ -565,7 +576,7 @@ const localeRu = {
           "Разбор дизайна и улучшение решений.",
           "Финальная адаптация для планшетов и десктопа.",
           "Итоговый обзор дизайна и демонстрация проекта.",
-        ], "Урок {number}", "мин", ["🎨", "📐", "🔠", "📱", "✨"]),
+        ], "Урок {number}", "мин"),
         level: "Начальный",
         accent: "gold",
       },

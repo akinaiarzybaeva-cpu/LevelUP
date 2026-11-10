@@ -4,12 +4,18 @@ import "./theme-overrides.css";
 import Quiz from "./components/Quiz.jsx";
 import Auth from "./components/Auth.jsx";
 import FeaturedPathCard from "./components/FeaturedPathCard.jsx";
+import LessonIcon from "./components/LessonIcon.jsx";
 import siteLogo from "./pages/logo.png";
 import { DEFAULT_LANGUAGE, isSupportedLanguage, languageOptions, locales } from "./i18n";
 
 const LANGUAGE_STORAGE_KEY = "levelup-language";
 const THEME_STORAGE_KEY = "levelup-theme";
 const USER_STORAGE_KEY = "studypro_user";
+const AUTH_TOKENS_STORAGE_KEY = "studypro_auth_tokens";
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL
+  || (typeof window !== "undefined" ? `${window.location.origin}/api` : "/api")
+).replace(/\/+$/, "");
 
 const normalizeTheme = (value) => (value === "dark" ? "dark" : "light");
 
@@ -212,24 +218,107 @@ const getProgressUserKey = (userData) => {
   return String(primaryId).trim().toLowerCase() || "guest";
 };
 
+const buildApiUrl = (path) => `${API_BASE_URL}/${String(path || "").replace(/^\/+/, "")}`;
+
+const getStoredAuthTokens = () => {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(AUTH_TOKENS_STORAGE_KEY) || "null");
+    if (!parsed || typeof parsed !== "object") return null;
+    const access = typeof parsed.access === "string" ? parsed.access : "";
+    const refresh = typeof parsed.refresh === "string" ? parsed.refresh : "";
+    if (!access && !refresh) return null;
+    return { access, refresh };
+  } catch {
+    return null;
+  }
+};
+
+const setStoredAuthTokens = (tokens) => {
+  if (!tokens || typeof tokens !== "object") return;
+  const payload = {
+    access: typeof tokens.access === "string" ? tokens.access : "",
+    refresh: typeof tokens.refresh === "string" ? tokens.refresh : "",
+  };
+  localStorage.setItem(AUTH_TOKENS_STORAGE_KEY, JSON.stringify(payload));
+};
+
+const clearStoredAuthTokens = () => {
+  localStorage.removeItem(AUTH_TOKENS_STORAGE_KEY);
+};
+
+const getStoredReviewsForUser = (userData) => {
+  const userKey = getProgressUserKey(userData);
+  try {
+    const parsed = JSON.parse(localStorage.getItem(REVIEWS_STORAGE_KEY) || "{}");
+    if (Array.isArray(parsed)) {
+      return userKey === "guest" ? parsed.filter(isValidReview) : [];
+    }
+    if (!parsed || typeof parsed !== "object") return [];
+    const candidate = parsed[userKey];
+    return Array.isArray(candidate) ? candidate.filter(isValidReview) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveStoredReviewsForUser = (userData, reviews) => {
+  const userKey = getProgressUserKey(userData);
+  let parsed = {};
+  try {
+    const raw = JSON.parse(localStorage.getItem(REVIEWS_STORAGE_KEY) || "{}");
+    if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+      parsed = raw;
+    } else if (Array.isArray(raw)) {
+      parsed = { guest: raw.filter(isValidReview) };
+    }
+  } catch {
+    parsed = {};
+  }
+  parsed[userKey] = Array.isArray(reviews) ? reviews.filter(isValidReview) : [];
+  localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(parsed));
+};
+
+const getStoredAiProState = (userData) => {
+  const userKey = getProgressUserKey(userData);
+  try {
+    const parsed = JSON.parse(localStorage.getItem(AI_PRO_STORAGE_KEY) || "{}");
+    if (typeof parsed === "boolean") {
+      return userKey === "guest" ? parsed : false;
+    }
+    if (parsed && typeof parsed === "object") {
+      if (typeof parsed[userKey] === "boolean") return parsed[userKey];
+      if (parsed.active && parsed.email && userData?.email) {
+        return String(parsed.email).trim().toLowerCase() === String(userData.email).trim().toLowerCase();
+      }
+      return false;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+};
+
+const saveStoredAiProState = (userData, isActive) => {
+  const userKey = getProgressUserKey(userData);
+  let parsed = {};
+  try {
+    const raw = JSON.parse(localStorage.getItem(AI_PRO_STORAGE_KEY) || "{}");
+    if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+      parsed = raw;
+    }
+  } catch {
+    parsed = {};
+  }
+  parsed[userKey] = Boolean(isActive);
+  localStorage.setItem(AI_PRO_STORAGE_KEY, JSON.stringify(parsed));
+};
+
 const getStoredLessonProgress = () => {
   try {
     const parsed = JSON.parse(localStorage.getItem(LESSON_PROGRESS_STORAGE_KEY) || "{}");
     return parsed && typeof parsed === "object" ? parsed : {};
   } catch {
     return {};
-  }
-};
-
-const getStoredAiProState = () => {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(AI_PRO_STORAGE_KEY) || "false");
-    if (parsed && typeof parsed === "object") {
-      return Boolean(parsed.active || parsed.enabled || parsed.value);
-    }
-    return Boolean(parsed);
-  } catch {
-    return false;
   }
 };
 
@@ -335,6 +424,7 @@ function App() {
   const initialHashState = parseHashState();
   const [language, setLanguage] = useState(getInitialLanguage);
   const initialStoredUser = normalizeUserProfile(getStoredUser());
+  const initialStoredTokens = getStoredAuthTokens();
   const [user, setUser] = useState(() => {
     if (!initialStoredUser) {
       try {
@@ -347,10 +437,13 @@ function App() {
     return initialStoredUser;
   });
   const [route, setRoute] = useState(() => {
-    if (initialHashState.route === ROUTE_MEMBER_HOME && !initialStoredUser) return ROUTE_PUBLIC_HOME;
+    if (initialHashState.route === ROUTE_MEMBER_HOME && !initialStoredUser && !initialStoredTokens?.access) return ROUTE_PUBLIC_HOME;
+    if (initialHashState.route === ROUTE_PROFILE_SETTINGS && !initialStoredUser && !initialStoredTokens?.access) return ROUTE_PUBLIC_HOME;
+    if (initialHashState.route === ROUTE_PROFILE_DATA && !initialStoredUser && !initialStoredTokens?.access) return ROUTE_PUBLIC_HOME;
     return initialHashState.route;
   });
   const [authMode, setAuthMode] = useState(initialHashState.authMode);
+  const [authBootstrapDone, setAuthBootstrapDone] = useState(() => !Boolean(initialStoredTokens?.access));
 
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -396,19 +489,8 @@ function App() {
     return [{ role: "bot", text: initialLocale.content.chat.welcome }];
   });
 
-  const [aiProEnabled, setAiProEnabled] = useState(() => getStoredAiProState());
-
-  const [websiteReviews, setWebsiteReviews] = useState(() => {
-    try {
-      const parsed = JSON.parse(localStorage.getItem(REVIEWS_STORAGE_KEY) || "[]");
-      if (Array.isArray(parsed)) {
-        return parsed.filter(isValidReview);
-      }
-    } catch {
-      return [];
-    }
-    return [];
-  });
+  const [aiProEnabled, setAiProEnabled] = useState(() => getStoredAiProState(initialStoredUser));
+  const [websiteReviews, setWebsiteReviews] = useState(() => getStoredReviewsForUser(initialStoredUser));
   const [lessonProgress, setLessonProgress] = useState(getStoredLessonProgress);
 
   const [profileForm, setProfileForm] = useState(() => {
@@ -485,10 +567,101 @@ function App() {
   }, [courseCatalog, reviewCourseId, reviewLessonId]);
 
   useEffect(() => {
+    const bootstrapAuthSession = async () => {
+      const storedTokens = getStoredAuthTokens();
+      if (!storedTokens?.access) {
+        setAuthBootstrapDone(true);
+        return;
+      }
+
+      const requestCurrentUser = async (accessToken) => {
+        const response = await fetch(buildApiUrl("auth/me/"), {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        const payload = await response.json().catch(() => ({}));
+        return { response, payload };
+      };
+
+      const refreshAccessToken = async () => {
+        if (!storedTokens.refresh) return null;
+        const response = await fetch(buildApiUrl("auth/refresh/"), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ refresh: storedTokens.refresh }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload?.access) {
+          return null;
+        }
+        const nextTokens = {
+          access: payload.access,
+          refresh: typeof payload.refresh === "string" ? payload.refresh : storedTokens.refresh,
+        };
+        setStoredAuthTokens(nextTokens);
+        return nextTokens;
+      };
+
+      try {
+        let session = await requestCurrentUser(storedTokens.access);
+        if (session.response.status === 401) {
+          const refreshedTokens = await refreshAccessToken();
+          if (refreshedTokens?.access) {
+            session = await requestCurrentUser(refreshedTokens.access);
+          }
+        }
+
+        if (!session.response.ok || !session.payload?.id) {
+          setUser(null);
+          localStorage.removeItem(USER_STORAGE_KEY);
+          clearStoredAuthTokens();
+          setRoute(ROUTE_AUTH);
+          setAuthMode("login");
+          return;
+        }
+
+        const fallbackUser = normalizeUserProfile(getStoredUser()) || {};
+        const normalizedUser = normalizeUserProfile({
+          ...fallbackUser,
+          id: session.payload.id,
+          username: session.payload.username || fallbackUser.username || "",
+          email: session.payload.email || fallbackUser.email || "",
+          fullName: session.payload.profile?.full_name || fallbackUser.fullName || fallbackUser.name || session.payload.username || "",
+          name: session.payload.profile?.full_name || fallbackUser.fullName || fallbackUser.name || session.payload.username || "",
+          phone: session.payload.profile?.phone || fallbackUser.phone || "",
+          language: session.payload.profile?.preferred_language || fallbackUser.language || getInitialLanguage(),
+          registrationDate: fallbackUser.registrationDate || new Date().toISOString(),
+        });
+
+        if (!normalizedUser) {
+          localStorage.removeItem(USER_STORAGE_KEY);
+          clearStoredAuthTokens();
+          return;
+        }
+
+        setUser(normalizedUser);
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(normalizedUser));
+      } catch {
+        setUser(null);
+        localStorage.removeItem(USER_STORAGE_KEY);
+        clearStoredAuthTokens();
+      } finally {
+        setAuthBootstrapDone(true);
+      }
+    };
+
+    bootstrapAuthSession();
+  }, []);
+
+  useEffect(() => {
     if (user && !isProfileComplete(user)) {
       setUser(null);
       try {
         localStorage.removeItem(USER_STORAGE_KEY);
+        clearStoredAuthTokens();
       } catch {
         // Ignore storage errors for environments that block localStorage.
       }
@@ -514,12 +687,25 @@ function App() {
   }, [language]);
 
   useEffect(() => {
+    setWebsiteReviews(getStoredReviewsForUser(user));
+    setAiProEnabled(getStoredAiProState(user));
+  }, [user]);
+
+  useEffect(() => {
     try {
-      localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(websiteReviews));
+      saveStoredReviewsForUser(user, websiteReviews);
     } catch {
       // Ignore storage errors for environments that block localStorage.
     }
-  }, [websiteReviews]);
+  }, [user, websiteReviews]);
+
+  useEffect(() => {
+    try {
+      saveStoredAiProState(user, aiProEnabled);
+    } catch {
+      // Ignore storage errors for environments that block localStorage.
+    }
+  }, [user, aiProEnabled]);
 
   useEffect(() => {
     try {
@@ -643,6 +829,7 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!authBootstrapDone) return undefined;
     const handleHashChange = () => {
       const hash = window.location.hash.replace(/^#\/?/, "").toLowerCase();
       const safeHash = hash || "home";
@@ -681,7 +868,7 @@ function App() {
 
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
-  }, [isAuthenticated, route]);
+  }, [authBootstrapDone, isAuthenticated, route]);
 
   useEffect(() => {
     const expectedHash = getHashForState(route, authMode);
@@ -1136,6 +1323,7 @@ function App() {
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem(USER_STORAGE_KEY);
+    clearStoredAuthTokens();
     setIsProfileOpen(false);
     setSelectedCourseId(null);
     setSelectedLessonId(null);
@@ -1215,8 +1403,8 @@ function App() {
       return;
     }
 
-    if (nextPassword.length < 6) {
-      setPasswordUpdateError(t.passwordTooShort || "Password must be at least 6 characters long.");
+    if (nextPassword.length < 8) {
+      setPasswordUpdateError(t.passwordTooShort || "Password must be at least 8 characters long.");
       return;
     }
 
@@ -1616,7 +1804,6 @@ function App() {
     setUser(nextUser);
     setAiProEnabled(true);
     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(nextUser));
-    localStorage.setItem(AI_PRO_STORAGE_KEY, JSON.stringify({ active: true, email: nextUser.email || "", activatedAt: new Date().toISOString() }));
     setIsAiAssistantOpen(true);
     setIsAiAssistantMinimized(false);
     setAiAssistantError("");
@@ -2144,7 +2331,7 @@ function App() {
                       value={passwordForm.current}
                       onChange={(event) => setPasswordForm((previous) => ({ ...previous, current: event.target.value }))}
                       placeholder={t.currentPasswordPlaceholder || "Enter current password"}
-                      minLength={6}
+                      minLength={8}
                       required
                     />
                     <button
@@ -2166,7 +2353,7 @@ function App() {
                       value={passwordForm.next}
                       onChange={(event) => setPasswordForm((previous) => ({ ...previous, next: event.target.value }))}
                       placeholder={t.newPasswordPlaceholder || t.enterPassword}
-                      minLength={6}
+                      minLength={8}
                       required
                     />
                     <button
@@ -2188,7 +2375,7 @@ function App() {
                       value={passwordForm.confirm}
                       onChange={(event) => setPasswordForm((previous) => ({ ...previous, confirm: event.target.value }))}
                       placeholder={t.confirmNewPasswordPlaceholder || t.reEnterPassword}
-                      minLength={6}
+                      minLength={8}
                       required
                     />
                     <button
@@ -3167,6 +3354,7 @@ function App() {
               key={authMode}
               standalone
               t={t}
+              language={language}
               initialMode={authMode}
               onModeChange={setAuthMode}
               onLogin={(userData, mode) => {
@@ -3250,7 +3438,9 @@ function App() {
                         className="lesson-list-item"
                         onClick={() => openLessonCard(selectedCourse, lesson)}
                       >
-                        <span className="lesson-list-icon">{lesson.icon || "📘"}</span>
+                        <span className={`lesson-list-icon ${selectedCourse.accent || ""}`}>
+                          <LessonIcon lesson={lesson} course={selectedCourse} size={20} />
+                        </span>
                         <span className="lesson-list-copy">
                           <strong>{t.lessonNumber.replace("{number}", String(index + 1))}</strong>
                           <small>{lesson.description}</small>
@@ -3299,7 +3489,9 @@ function App() {
                 </div>
 
                 <div className="lesson-hero-box">
-                  <span className="lesson-hero-icon">{selectedLesson.icon || "📘"}</span>
+                  <span className={`lesson-hero-icon ${selectedCourse.accent || ""}`}>
+                    <LessonIcon lesson={selectedLesson} course={selectedCourse} size={24} />
+                  </span>
                   <div>
                     <strong>{selectedLesson.title}</strong>
                     <p>{selectedLesson.description || selectedCourse.description}</p>

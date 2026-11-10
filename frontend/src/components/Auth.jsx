@@ -2,13 +2,17 @@ import { useState } from "react";
 import siteLogo from "../pages/logo.png";
 
 const PASSWORD_HASH_PREFIX = "sha256:";
+const AUTH_TOKENS_STORAGE_KEY = "studypro_auth_tokens";
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL
+  || (typeof window !== "undefined" ? `${window.location.origin}/api` : "/api")
+).replace(/\/+$/, "");
 
 const bytesToHex = (bytes) =>
   Array.from(bytes)
     .map((value) => value.toString(16).padStart(2, "0"))
     .join("");
-
-const isPasswordHash = (value) => typeof value === "string" && value.startsWith(PASSWORD_HASH_PREFIX);
 
 const hashPassword = async (rawPassword) => {
   if (!rawPassword || typeof rawPassword !== "string") {
@@ -22,16 +26,61 @@ const hashPassword = async (rawPassword) => {
   return `${PASSWORD_HASH_PREFIX}${bytesToHex(new Uint8Array(hashBuffer))}`;
 };
 
-const isPasswordValid = async (rawPassword, storedUser) => {
-  if (!rawPassword || !storedUser) return false;
-  if (isPasswordHash(storedUser.passwordHash || "")) {
-    const nextHash = await hashPassword(rawPassword);
-    return nextHash === storedUser.passwordHash;
-  }
-  return typeof storedUser.password === "string" && storedUser.password === rawPassword;
+const buildApiUrl = (path) => `${API_BASE_URL}/${String(path || "").replace(/^\/+/, "")}`;
+
+const parseErrorMessage = (payload, fallbackMessage) => {
+  const pickText = (value) => {
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const nested = pickText(item);
+        if (nested) return nested;
+      }
+      return "";
+    }
+    if (value && typeof value === "object") {
+      for (const nestedValue of Object.values(value)) {
+        const nested = pickText(nestedValue);
+        if (nested) return nested;
+      }
+    }
+    return "";
+  };
+  return pickText(payload) || fallbackMessage;
 };
 
-export default function Auth({ onClose, onLogin, onModeChange, t = {}, initialMode = "register", standalone = false }) {
+const fetchJson = async (url, options = {}) => {
+  const response = await fetch(url, options);
+  const payload = await response.json().catch(() => ({}));
+  return { response, payload };
+};
+
+const buildClientUser = (serverUser, language, passwordHash) => {
+  const fullName = serverUser?.profile?.full_name || serverUser?.username || "";
+  return {
+    id: serverUser?.id,
+    name: fullName,
+    fullName,
+    username: serverUser?.username || "",
+    email: serverUser?.email || "",
+    phone: serverUser?.profile?.phone || "",
+    language: serverUser?.profile?.preferred_language || language || "en",
+    theme: "light",
+    passwordHash: passwordHash || "",
+    password: "",
+    registrationDate: new Date().toISOString(),
+  };
+};
+
+export default function Auth({
+  onClose,
+  onLogin,
+  onModeChange,
+  t = {},
+  language = "en",
+  initialMode = "register",
+  standalone = false,
+}) {
   const [mode, setMode] = useState(initialMode);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -45,15 +94,19 @@ export default function Auth({ onClose, onLogin, onModeChange, t = {}, initialMo
     setError("");
     setSuccessMessage("");
 
-    const savedUser = JSON.parse(localStorage.getItem("studypro_user") || "null");
-
     if (mode === "register") {
       if (!name.trim()) {
         setError(t.nameRequired);
         return;
       }
 
-      if (password.length < 6) {
+      const normalizedEmail = email.trim().toLowerCase();
+      if (!EMAIL_PATTERN.test(normalizedEmail)) {
+        setError(t.invalidEmailFormat || "Please enter a valid email address.");
+        return;
+      }
+
+      if (password.length < 8) {
         setError(t.passwordTooShort);
         return;
       }
@@ -64,64 +117,116 @@ export default function Auth({ onClose, onLogin, onModeChange, t = {}, initialMo
       }
 
       const normalizedName = name.trim();
-      const normalizedEmail = email.trim().toLowerCase();
       try {
-        const passwordHash = await hashPassword(password);
-        const user = {
-          name: normalizedName,
-          fullName: normalizedName,
-          username: normalizedName.split(/\s+/)[0],
-          email: normalizedEmail,
-          passwordHash,
-          password: "",
-          registrationDate: new Date().toISOString(),
-          language: "ru",
-          theme: "light",
-        };
+        const registerResult = await fetchJson(buildApiUrl("auth/register/"), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept-Language": language,
+          },
+          body: JSON.stringify({
+            email: normalizedEmail,
+            password,
+            full_name: normalizedName,
+            preferred_language: language,
+          }),
+        });
 
-        localStorage.setItem("studypro_user", JSON.stringify(user));
+        if (!registerResult.response.ok) {
+          const message = parseErrorMessage(registerResult.payload, t.registrationFailed || "Unable to create account. Please check your data.");
+          setError(message);
+          return;
+        }
+
+        const loginResult = await fetchJson(buildApiUrl("auth/login/"), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept-Language": language,
+          },
+          body: JSON.stringify({
+            email: normalizedEmail,
+            password,
+          }),
+        });
+
+        if (!loginResult.response.ok || !loginResult.payload?.access) {
+          const message = parseErrorMessage(loginResult.payload, t.loginFailed || "Account created, but sign-in failed. Please try logging in.");
+          setError(message);
+          return;
+        }
+
+        localStorage.setItem(AUTH_TOKENS_STORAGE_KEY, JSON.stringify({
+          access: loginResult.payload.access,
+          refresh: loginResult.payload.refresh || "",
+        }));
+
+        const meResult = await fetchJson(buildApiUrl("auth/me/"), {
+          headers: {
+            Authorization: `Bearer ${loginResult.payload.access}`,
+          },
+        });
+
+        if (!meResult.response.ok || !meResult.payload?.id) {
+          setError(t.profileLoadError || "Signed in, but failed to load profile data.");
+          return;
+        }
+
+        const passwordHash = await hashPassword(password);
+        const user = buildClientUser(meResult.payload, language, passwordHash);
         onLogin(user, "register");
       } catch {
-        setError(t.passwordHashingError || "Secure password setup is unavailable right now. Please try again.");
+        setError(t.networkError || "Unable to connect to server. Please try again.");
       }
       return;
     }
 
-    if (!savedUser || !savedUser.email || savedUser.email !== email.trim().toLowerCase()) {
-      setError(t.accountNotFound);
-      return;
-    }
-
-    let isValidPassword = false;
     try {
-      isValidPassword = await isPasswordValid(password, savedUser);
-    } catch {
-      setError(t.passwordHashingError || "Secure password verification is unavailable right now. Please try again.");
-      return;
-    }
-
-    if (!isValidPassword) {
-      setError(t.invalidPassword || "Incorrect password. Please try again.");
-      return;
-    }
-
-    let nextUser = savedUser;
-    if (!isPasswordHash(savedUser.passwordHash || "") && typeof savedUser.password === "string" && savedUser.password.length > 0) {
-      try {
-        const migratedHash = await hashPassword(savedUser.password);
-        nextUser = {
-          ...savedUser,
-          passwordHash: migratedHash,
-          password: "",
-        };
-        localStorage.setItem("studypro_user", JSON.stringify(nextUser));
-      } catch {
-        setError(t.passwordHashingError || "Secure password verification is unavailable right now. Please try again.");
+      const normalizedEmail = email.trim().toLowerCase();
+      if (!EMAIL_PATTERN.test(normalizedEmail)) {
+        setError(t.invalidEmailFormat || "Please enter a valid email address.");
         return;
       }
-    }
+      const loginResult = await fetchJson(buildApiUrl("auth/login/"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept-Language": language,
+        },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          password,
+        }),
+      });
 
-    onLogin(nextUser, "login");
+      if (!loginResult.response.ok || !loginResult.payload?.access) {
+        const message = parseErrorMessage(loginResult.payload, t.invalidPassword || "Incorrect email or password.");
+        setError(message);
+        return;
+      }
+
+      localStorage.setItem(AUTH_TOKENS_STORAGE_KEY, JSON.stringify({
+        access: loginResult.payload.access,
+        refresh: loginResult.payload.refresh || "",
+      }));
+
+      const meResult = await fetchJson(buildApiUrl("auth/me/"), {
+        headers: {
+          Authorization: `Bearer ${loginResult.payload.access}`,
+        },
+      });
+
+      if (!meResult.response.ok || !meResult.payload?.id) {
+        setError(t.profileLoadError || "Signed in, but failed to load profile data.");
+        return;
+      }
+
+      const passwordHash = await hashPassword(password);
+      const nextUser = buildClientUser(meResult.payload, language, passwordHash);
+      onLogin(nextUser, "login");
+    } catch {
+      setError(t.networkError || "Unable to connect to server. Please try again.");
+    }
   }
 
   function handleRecovery() {
@@ -215,7 +320,7 @@ export default function Auth({ onClose, onLogin, onModeChange, t = {}, initialMo
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder={t.enterPassword}
-              minLength={6}
+              minLength={8}
               required
             />
           </label>
@@ -228,7 +333,7 @@ export default function Auth({ onClose, onLogin, onModeChange, t = {}, initialMo
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
                 placeholder={t.reEnterPassword}
-                minLength={6}
+                minLength={8}
                 required
               />
             </label>

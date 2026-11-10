@@ -1,12 +1,17 @@
-const buildCourseLessons = (courseId, topics, lessonLabel, minutesUnit, iconSet = ["📘", "🧠", "🎯", "🛠️", "📚"]) =>
-  topics.map((topic, index) => ({
-    id: `${courseId}-${index + 1}`,
-    title: lessonLabel.replace("{number}", String(index + 1)),
-    description: topic,
-    duration: `${7 + ((index * 3) % 12)} ${minutesUnit}`,
-    icon: iconSet[index % iconSet.length],
-    status: index < 4 ? "completed" : index < 8 ? "in-progress" : "not-started",
-  }));
+import { getLessonIconName } from "../data/lessonIcons.js";
+
+const buildCourseLessons = (courseId, topics, lessonLabel, minutesUnit) =>
+  topics.map((topic, index) => {
+    const lessonId = `${courseId}-${index + 1}`;
+    return {
+      id: lessonId,
+      title: lessonLabel.replace("{number}", String(index + 1)),
+      description: topic,
+      duration: `${7 + ((index * 3) % 12)} ${minutesUnit}`,
+      icon: getLessonIconName(lessonId),
+      status: index < 4 ? "completed" : index < 8 ? "in-progress" : "not-started",
+    };
+  });
 
 const localeKy = {
   code: "ky",
@@ -194,7 +199,7 @@ const localeKy = {
     password: "Сырсөз",
     confirmPassword: "Сырсөздү кайталаңыз",
     enterEmail: "you@example.com",
-    enterPassword: "Кеминде 6 белги",
+    enterPassword: "Кеминде 8 белги",
     reEnterPassword: "Сырсөздү кайра киргизиңиз",
     forgotPassword: "Сырсөздү унуттуңузбу?",
     createAccount: "Аккаунт түзүү →",
@@ -202,10 +207,16 @@ const localeKy = {
     alreadyHave: "Аккаунтуңуз барбы?",
     needAccount: "Аккаунт керекпи?",
     accountNotFound: "Аккаунт табылган жок. Алгач аккаунт түзүңүз.",
-    invalidPassword: "Сырсөз туура эмес. Кайра аракет кылыңыз.",
-    passwordTooShort: "Сырсөз кеминде 6 белгиден турушу керек.",
+    invalidPassword: "Email же сырсөз туура эмес.",
+    passwordTooShort: "Сырсөз кеминде 8 белгиден турушу керек.",
     passwordsMismatch: "Сырсөздөр дал келген жок. Кайра аракет кылыңыз.",
     nameRequired: "Толук аты-жөнүңүздү киргизиңиз.",
+    invalidEmailFormat: "Туура email дарегин киргизиңиз.",
+    emailAlreadyRegistered: "Бул электрондук почта менен аккаунт мурунтан эле катталган. Аккаунтуңузга кириңиз.",
+    registrationFailed: "Аккаунт түзүү мүмкүн болгон жок. Киргизилген маалыматты текшериңиз.",
+    loginFailed: "Аккаунт түзүлдү, бирок кирүү ишке ашкан жок. Кайра кириңиз.",
+    profileLoadError: "Кирүү аткарылды, бирок профиль жүктөлгөн жок.",
+    networkError: "Серверге туташуу мүмкүн болгон жок. Кайра аракет кылыңыз.",
     recoveryPrompt: "Калыбына келтирүү нускамасын алуу үчүн email киргизиңиз.",
     resetSuccess: "Сырсөздү калыбына келтирүү нускамаcы төмөнкү дарекке жөнөтүлөт",
     register: "Катталуу",
@@ -394,7 +405,7 @@ const localeKy = {
           "Илимий өлчөө жана белгисиздик.",
           "Технология жана инженериядагы физика.",
           "Жыйынтык кайталоо жана колдонмо тажрыйбалар.",
-        ], "{number}-сабак", "мүн", ["🏎️", "🔧", "⚡", "📈", "🔬"]),
+        ], "{number}-сабак", "мүн"),
         level: "Орто",
         accent: "orange",
       },
@@ -426,7 +437,7 @@ const localeKy = {
           "Грамматиканы практика аркылуу кайталоо.",
           "Ролдук машыгуу менен сүйлөө эркиндигин өнүктүрүү.",
           "Жыйынтык кайталоо жана ишенимди бекемдөө.",
-        ], "{number}-сабак", "мүн", ["🗣️", "📚", "🎧", "✍️", "🧠"]),
+        ], "{number}-сабак", "мүн"),
         level: "Баштапкы",
         accent: "cyan",
       },
@@ -458,7 +469,7 @@ const localeKy = {
           "Кайра колдонулуучу utility класстар жана стил архитектурасы.",
           "DevTools аркылуу макет көйгөйлөрүн табуу жана оңдоо.",
           "Жыйынтык долбоор: Flexbox жана Grid менен адаптивдүү баракча.",
-        ], "{number}-сабак", "мүн", ["🔤", "💬", "📖", "✍️", "📝"]),
+        ], "{number}-сабак", "мүн"),
         level: "Баштапкы",
         accent: "green",
       },
@@ -490,7 +501,7 @@ const localeKy = {
           "JavaScript менен интерактивдүү UI компоненттерин куруу.",
           "Кодду уюштуруу, модулдар жана DevTools'та оңдоо.",
           "Жыйынтык долбоор: DOM жана API колдонгон динамикалык тиркеме.",
-        ], "{number}-сабак", "мүн", ["👋", "🧾", "🎙️", "✍️", "🗣️"]),
+        ], "{number}-сабак", "мүн"),
         level: "Орто",
         accent: "red",
       },
@@ -522,7 +533,7 @@ const localeKy = {
           "Долбоорго негизделген ЖИ колдонуу пландары.",
           "Коопсуздук жана купуялык боюнча практикалык принциптер.",
           "ЖИ долбоорун жыйынтыктап баалоо жана рефлексия.",
-        ], "{number}-сабак", "мүн", ["🧠", "💡", "🛠️", "⚖️", "📊"]),
+        ], "{number}-сабак", "мүн"),
         level: "Орто",
         accent: "pink",
       },
@@ -554,7 +565,7 @@ const localeKy = {
           "Дизайнды талдоо жана жакшыртуу практикуму.",
           "Планшет жана десктоп үчүн акыркы адаптация.",
           "Дизайн боюнча жыйынтык обзор жана долбоор көрсөтүүсү.",
-        ], "{number}-сабак", "мүн", ["🎨", "📐", "🔠", "📱", "✨"]),
+        ], "{number}-сабак", "мүн"),
         level: "Баштапкы",
         accent: "gold",
       },
