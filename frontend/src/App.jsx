@@ -3,6 +3,7 @@ import "./App.css";
 import "./theme-overrides.css";
 import Quiz from "./components/Quiz.jsx";
 import Auth from "./components/Auth.jsx";
+import AdminPanel from "./components/AdminPanel.jsx";
 import FeaturedPathCard from "./components/FeaturedPathCard.jsx";
 import LessonIcon from "./components/LessonIcon.jsx";
 import siteLogo from "./pages/logo.png";
@@ -80,6 +81,7 @@ const isPasswordValidForUser = async (rawPassword, userData) => {
 const ROUTE_PUBLIC_HOME = "public-home";
 const ROUTE_AUTH = "auth";
 const ROUTE_MEMBER_HOME = "member-home";
+const ROUTE_ADMIN = "admin";
 const ROUTE_PROFILE_SETTINGS = "profile-settings";
 const ROUTE_PROFILE_DATA = "profile-data";
 
@@ -379,6 +381,7 @@ const parseHashState = () => {
   if (hash === "member-home" || hash === "student-home") {
     return { route: ROUTE_MEMBER_HOME, authMode: "register" };
   }
+  if (hash === "admin") return { route: ROUTE_ADMIN, authMode: "login" };
   if (hash === "profile-settings" || hash === "settings") return { route: ROUTE_PROFILE_SETTINGS, authMode: "register" };
   if (hash === "profile-data" || hash === "my-data" || hash === "data") {
     return { route: ROUTE_PROFILE_DATA, authMode: "register" };
@@ -399,6 +402,7 @@ const getHashForState = (route, authMode) => {
   if (route === ROUTE_AUTH) {
     return authMode === "login" ? "#/login" : "#/register";
   }
+  if (route === ROUTE_ADMIN) return "#/admin";
   if (route === ROUTE_MEMBER_HOME) return "#/member-home";
   if (route === ROUTE_PROFILE_SETTINGS) return "#/profile-settings";
   if (route === ROUTE_PROFILE_DATA) return "#/profile-data";
@@ -3300,6 +3304,17 @@ function App() {
       </>
     );
   };
+
+  if (route === ROUTE_ADMIN) {
+    return (
+      <AdminPanel
+        language={language}
+        onBack={() => navigateTo(ROUTE_PUBLIC_HOME)}
+        onLogout={() => navigateTo(ROUTE_AUTH, "login")}
+        onAuthenticated={() => navigateTo(ROUTE_ADMIN, "login")}
+      />
+    );
+  }
 
   if (route === ROUTE_AUTH) {
     return (

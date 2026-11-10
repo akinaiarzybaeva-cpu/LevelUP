@@ -7,7 +7,7 @@ from django.db import IntegrityError, transaction
 from rest_framework import serializers
 
 from .auth_messages import auth_message, resolve_auth_language
-from .models import Course, PricingPlan, UserProfile
+from .models import AdminActivityLog, Course, Lesson, PricingPlan, Review, UserPayment, UserProfile
 
 logger = logging.getLogger(__name__)
 
@@ -18,17 +18,86 @@ class CourseSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class LessonSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lesson
+        fields = "__all__"
+
+
 class PricingPlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = PricingPlan
         fields = "__all__"
 
 
+class ReviewSerializer(serializers.ModelSerializer):
+    course_title = serializers.SerializerMethodField()
+    lesson_title = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Review
+        fields = ("id", "user", "name", "rating", "text", "course", "lesson", "course_title", "lesson_title", "created_at")
+
+    def get_course_title(self, obj):
+        return obj.course.title if obj.course else ""
+
+    def get_lesson_title(self, obj):
+        return obj.lesson.title if obj.lesson else ""
+
+
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ("full_name", "phone", "preferred_language", "created_at")
+        fields = ("full_name", "phone", "preferred_language", "role", "is_blocked", "ai_pro_active", "plan_name", "plan_expires_at", "created_at")
+        read_only_fields = ("created_at", "role", "is_blocked", "ai_pro_active", "plan_name", "plan_expires_at")
+
+
+class UserProfileAdminSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserProfile
+        fields = ("full_name", "phone", "preferred_language", "role", "is_blocked", "ai_pro_active", "plan_name", "plan_expires_at", "created_at")
         read_only_fields = ("created_at",)
+
+
+class UserPaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserPayment
+        fields = "__all__"
+
+
+class AdminActivityLogSerializer(serializers.ModelSerializer):
+    actor_email = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AdminActivityLog
+        fields = ("id", "actor", "actor_email", "action", "target_model", "target_id", "details", "metadata", "created_at")
+
+    def get_actor_email(self, obj):
+        return obj.actor.email if obj.actor else "system"
+
+
+class AdminUserSerializer(serializers.ModelSerializer):
+    profile = UserProfileAdminSerializer(read_only=True)
+    role = serializers.SerializerMethodField()
+    is_blocked = serializers.SerializerMethodField()
+    ai_pro_active = serializers.SerializerMethodField()
+    plan_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ("id", "username", "email", "is_staff", "is_active", "date_joined", "profile", "role", "is_blocked", "ai_pro_active", "plan_name")
+
+    def get_role(self, obj):
+        return getattr(obj.profile, "role", UserProfile.ROLE_MEMBER)
+
+    def get_is_blocked(self, obj):
+        return bool(getattr(obj.profile, "is_blocked", False))
+
+    def get_ai_pro_active(self, obj):
+        return bool(getattr(obj.profile, "ai_pro_active", False))
+
+    def get_plan_name(self, obj):
+        return getattr(obj.profile, "plan_name", "")
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
