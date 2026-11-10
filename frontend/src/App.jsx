@@ -826,11 +826,28 @@ function App() {
       if (!(eventTarget instanceof Element) || !eventTarget.closest(".profile-menu-wrap")) {
         setIsProfileOpen(false);
       }
+
+      if (isMobileMenuOpen && (!(eventTarget instanceof Element) || !eventTarget.closest(".site-header"))) {
+        setIsMobileMenuOpen(false);
+      }
     };
 
     document.addEventListener("pointerdown", handleClickOutside);
     return () => document.removeEventListener("pointerdown", handleClickOutside);
-  }, []);
+  }, [isMobileMenuOpen]);
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isMobileMenuOpen]);
 
   useEffect(() => {
     if (!authBootstrapDone) return undefined;
@@ -2188,7 +2205,7 @@ function App() {
 
             <button
               type="button"
-              className="nav-toggle"
+              className={`nav-toggle ${isMobileMenuOpen ? "open" : ""}`}
               aria-label={isMobileMenuOpen ? t.closeMenu : t.openMenu}
               aria-expanded={isMobileMenuOpen}
               onClick={() => setIsMobileMenuOpen((prev) => !prev)}
