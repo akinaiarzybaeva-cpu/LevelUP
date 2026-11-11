@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from django.contrib.auth.models import User
-from django.db.models import Avg
+from django.db.models import Avg, Sum
 from django.utils import timezone
 from rest_framework import generics, permissions, serializers, viewsets
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
@@ -123,22 +123,54 @@ class AdminDashboardAPIView(APIView):
 
     def get(self, request):
         require_admin(request)
-        users = User.objects.filter(is_active=True).count()
+        users_count = User.objects.count()
+        registered_users = User.objects.filter(is_active=True).count()
         total_courses = Course.objects.count()
         total_lessons = Lesson.objects.count()
         active_plans = PricingPlan.objects.filter(is_active=True).count()
         ai_pro_users = UserProfile.objects.filter(ai_pro_active=True).count()
-        reviews = Review.objects.count()
+        total_reviews = Review.objects.count()
         average_rating = round(float(Review.objects.aggregate(avg=Avg("rating"))["avg"] or 0), 1)
+        total_payments = UserPayment.objects.count()
+        total_revenue = float(
+            UserPayment.objects.filter(status=UserPayment.STATUS_PAID).aggregate(total=Sum("amount"))["total"] or 0
+        )
+
+        recent_users = []
+        for user in User.objects.select_related("profile").order_by("-date_joined")[:5]:
+            recent_users.append({
+                "id": user.id,
+                "email": user.email,
+                "full_name": getattr(user.profile, "full_name", ""),
+                "role": getattr(user.profile, "role", UserProfile.ROLE_MEMBER),
+                "date_joined": user.date_joined.isoformat(),
+                "is_active": user.is_active,
+            })
+
+        revenue_by_month = []
+        monthly_map = {}
+        for payment in UserPayment.objects.filter(status=UserPayment.STATUS_PAID).order_by("created_at"):
+            month_key = payment.created_at.strftime("%Y-%m")
+            month_label = payment.created_at.strftime("%b %Y")
+            monthly_map.setdefault(month_key, {"label": month_label, "value": 0})
+            monthly_map[month_key]["value"] += float(payment.amount or 0)
+
+        for item in sorted(monthly_map.items())[-6:]:
+            revenue_by_month.append({"label": item[1]["label"], "value": round(item[1]["value"], 2)})
+
         response = {
-            "total_users": User.objects.count(),
-            "registered_users": users,
+            "total_users": users_count,
+            "registered_users": registered_users,
             "total_courses": total_courses,
             "total_lessons": total_lessons,
             "active_plans": active_plans,
             "ai_pro_users": ai_pro_users,
-            "total_reviews": reviews,
+            "total_reviews": total_reviews,
             "average_rating": average_rating,
+            "total_payments": total_payments,
+            "total_revenue": total_revenue,
+            "recent_users": recent_users,
+            "revenue_by_month": revenue_by_month,
         }
         return Response(response)
 
