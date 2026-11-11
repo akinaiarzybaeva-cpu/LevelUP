@@ -1947,3 +1947,101 @@ html[data-theme="dark"] .lesson-hero-icon.gold {
 .lesson-list-item:hover .lesson-list-icon {
   transform: scale(1.05);
 }
+
+.admin-dashboard-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.2rem;
+}
+
+.admin-panel-card {
+  padding: 1rem 1.1rem;
+}
+
+.admin-chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 130px;
+  padding-top: 1rem;
+}
+
+.admin-chart-bar-wrap {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  color: var(--muted);
+}
+
+.admin-chart-bar {
+  display: block;
+  width: 100%;
+  max-width: 48px;
+  min-height: 12px;
+  border-radius: 999px 999px 0 0;
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.95), rgba(4, 120, 87, 0.7));
+  box-shadow: 0 12px 28px rgba(16, 185, 129, 0.18);
+}
+
+.admin-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.admin-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.admin-list li strong,
+.admin-list li small {
+  display: block;
+}
+
+.admin-list li small {
+  color: var(--muted);
+}
+
+.admin-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.admin-toolbar input,
+.admin-toolbar select {
+  min-height: 42px;
+  border-radius: 12px;
+  padding: 0.7rem 0.8rem;
+}
+
+.admin-toolbar input {
+  flex: 1 1 240px;
+}
+
+.admin-muted {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+@media (max-width: 900px) {
+  .admin-dashboard-panels {
+    grid-template-columns: 1fr;
+  }
+}

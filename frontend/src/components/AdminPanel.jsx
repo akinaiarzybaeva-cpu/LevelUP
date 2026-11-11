@@ -66,6 +66,9 @@ export default function AdminPanel({ language = "en", onBack, onLogout, onAuthen
   const [loginError, setLoginError] = useState("");
   const [loading, setLoading] = useState(false);
   const [section, setSection] = useState("dashboard");
+  const [userSearch, setUserSearch] = useState("");
+  const [userRoleFilter, setUserRoleFilter] = useState("all");
+  const [reviewSearch, setReviewSearch] = useState("");
   const [dashboard, setDashboard] = useState(null);
   const [users, setUsers] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -421,7 +424,34 @@ export default function AdminPanel({ language = "en", onBack, onLogout, onAuthen
     ai_pro_users: aiProUsers.length,
     total_reviews: reviews.length,
     average_rating: 0,
+    total_payments: payments.length,
+    total_revenue: 0,
+    recent_users: [],
+    revenue_by_month: [],
   };
+
+  const filteredUsers = useMemo(() => {
+    const normalizedQuery = userSearch.trim().toLowerCase();
+    return users.filter((user) => {
+      const role = user.profile?.role || user.role || "member";
+      const matchesRole = userRoleFilter === "all" || role === userRoleFilter;
+      const haystack = [user.email, user.username, user.profile?.full_name, role].filter(Boolean).join(" ").toLowerCase();
+      const matchesSearch = !normalizedQuery || haystack.includes(normalizedQuery);
+      return matchesRole && matchesSearch;
+    });
+  }, [userRoleFilter, userSearch, users]);
+
+  const filteredReviews = useMemo(() => {
+    const normalizedQuery = reviewSearch.trim().toLowerCase();
+    return reviews.filter((review) => {
+      const haystack = [review.name, review.user, review.text, review.course_title, review.lesson_title].filter(Boolean).join(" ").toLowerCase();
+      return !normalizedQuery || haystack.includes(normalizedQuery);
+    });
+  }, [reviewSearch, reviews]);
+
+  const dashboardChartSeries = Array.isArray((dashboard || {}).revenue_by_month) ? (dashboard || {}).revenue_by_month : [];
+  const maxChartValue = Math.max(...dashboardChartSeries.map((item) => Number(item.value || 0)), 1);
+  const recentUsers = Array.isArray((dashboard || {}).recent_users) ? (dashboard || {}).recent_users : [];
 
   const sidebarItems = [
     { id: "dashboard", label: labels.dashboard },
@@ -484,23 +514,60 @@ export default function AdminPanel({ language = "en", onBack, onLogout, onAuthen
           {loadingData ? <p className="admin-loading">Loading admin data...</p> : null}
 
           {section === "dashboard" ? (
-            <div className="admin-dashboard-grid">
-              {[
-                ["Total users", stats.total_users],
-                ["Registered users", stats.registered_users],
-                ["Courses", stats.total_courses],
-                ["Lessons", stats.total_lessons],
-                ["Active plans", stats.active_plans],
-                ["AI Pro users", stats.ai_pro_users],
-                ["Reviews", stats.total_reviews],
-                ["Average rating", `${Number(stats.average_rating || 0).toFixed(1)} / 5`],
-              ].map(([label, value]) => (
-                <div key={label} className="admin-stat-card card-surface">
-                  <span>{label}</span>
-                  <strong>{value}</strong>
+            <>
+              <div className="admin-dashboard-grid">
+                {[
+                  ["Total users", stats.total_users],
+                  ["Registered users", stats.registered_users],
+                  ["Courses", stats.total_courses],
+                  ["Lessons", stats.total_lessons],
+                  ["Active plans", stats.active_plans],
+                  ["AI Pro users", stats.ai_pro_users],
+                  ["Payments", stats.total_payments],
+                  ["Revenue", `$${Number(stats.total_revenue || 0).toFixed(2)}`],
+                  ["Reviews", stats.total_reviews],
+                  ["Average rating", `${Number(stats.average_rating || 0).toFixed(1)} / 5`],
+                ].map(([label, value]) => (
+                  <div key={label} className="admin-stat-card card-surface">
+                    <span>{label}</span>
+                    <strong>{value}</strong>
+                  </div>
+                ))}
+              </div>
+
+              <div className="admin-dashboard-panels">
+                <div className="card-surface admin-panel-card">
+                  <div className="admin-section-head">
+                    <h3>Revenue trend</h3>
+                  </div>
+                  <div className="admin-chart">
+                    {dashboardChartSeries.length === 0 ? <p className="admin-muted">No payment data yet.</p> : dashboardChartSeries.map((item) => (
+                      <div key={`${item.label}-${item.value}`} className="admin-chart-bar-wrap">
+                        <span className="admin-chart-bar" style={{ height: `${Math.max(12, (Number(item.value || 0) / maxChartValue) * 100)}%` }} />
+                        <small>{item.label}</small>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
+
+                <div className="card-surface admin-panel-card">
+                  <div className="admin-section-head">
+                    <h3>Recent users</h3>
+                  </div>
+                  <ul className="admin-list">
+                    {recentUsers.length === 0 ? <li className="admin-muted">No recent users.</li> : recentUsers.map((item) => (
+                      <li key={item.id}>
+                        <div>
+                          <strong>{item.full_name || item.email}</strong>
+                          <small>{item.email}</small>
+                        </div>
+                        <span>{item.role}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </>
           ) : null}
 
           {section === "users" ? (
@@ -508,6 +575,22 @@ export default function AdminPanel({ language = "en", onBack, onLogout, onAuthen
               <div className="admin-section-head">
                 <h3>Users</h3>
               </div>
+
+              <div className="admin-toolbar">
+                <input
+                  type="text"
+                  value={userSearch}
+                  onChange={(event) => setUserSearch(event.target.value)}
+                  placeholder="Search users..."
+                />
+                <select value={userRoleFilter} onChange={(event) => setUserRoleFilter(event.target.value)}>
+                  <option value="all">All roles</option>
+                  <option value="member">Member</option>
+                  <option value="manager">Manager</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+
               <div className="admin-table-wrap">
                 <table>
                   <thead>
@@ -521,7 +604,7 @@ export default function AdminPanel({ language = "en", onBack, onLogout, onAuthen
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map((user) => (
+                    {filteredUsers.map((user) => (
                       <tr key={user.id}>
                         <td>{user.email || user.username}</td>
                         <td>
@@ -734,6 +817,14 @@ export default function AdminPanel({ language = "en", onBack, onLogout, onAuthen
           {section === "reviews" ? (
             <div className="admin-table-card card-surface">
               <div className="admin-section-head"><h3>Reviews</h3></div>
+              <div className="admin-toolbar">
+                <input
+                  type="text"
+                  value={reviewSearch}
+                  onChange={(event) => setReviewSearch(event.target.value)}
+                  placeholder="Search reviews..."
+                />
+              </div>
               <div className="admin-table-wrap">
                 <table>
                   <thead>
@@ -746,7 +837,7 @@ export default function AdminPanel({ language = "en", onBack, onLogout, onAuthen
                     </tr>
                   </thead>
                   <tbody>
-                    {reviews.map((review) => (
+                    {filteredReviews.map((review) => (
                       <tr key={review.id}>
                         <td>{review.name || review.user}</td>
                         <td>{review.course_title || review.course}</td>
