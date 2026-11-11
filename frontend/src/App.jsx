@@ -374,8 +374,11 @@ const loadYouTubeIframeApi = () => {
   return youtubeApiLoader;
 };
 
-const parseHashState = () => {
+const parseNavigationState = () => {
   if (typeof window === "undefined") return { route: ROUTE_PUBLIC_HOME, authMode: "register" };
+
+  const pathname = String(window.location.pathname || "").toLowerCase().replace(/\/+$/, "") || "/";
+  if (pathname === "/admin") return { route: ROUTE_ADMIN, authMode: "login" };
 
   const hash = window.location.hash.replace(/^#\/?/, "").toLowerCase();
 
@@ -428,7 +431,7 @@ function App() {
   const assistantInputRef = useRef(null);
   const [backgroundTokenCount, setBackgroundTokenCount] = useState(getBackgroundTokenCount);
   const backgroundTokens = useMemo(() => createBackgroundTokens(backgroundTokenCount), [backgroundTokenCount]);
-  const initialHashState = parseHashState();
+  const initialHashState = parseNavigationState();
   const [language, setLanguage] = useState(getInitialLanguage);
   const initialStoredUser = normalizeUserProfile(getStoredUser());
   const initialStoredTokens = getStoredAuthTokens();
@@ -880,7 +883,7 @@ function App() {
         return;
       }
 
-      const hashState = parseHashState();
+      const hashState = parseNavigationState();
 
       if ((hashState.route === ROUTE_MEMBER_HOME || hashState.route === ROUTE_PROFILE_SETTINGS || hashState.route === ROUTE_PROFILE_DATA) && !isAuthenticated) {
         setRoute(ROUTE_PUBLIC_HOME);
@@ -897,8 +900,20 @@ function App() {
 
   useEffect(() => {
     const expectedHash = getHashForState(route, authMode);
-    if (window.location.hash !== expectedHash) {
-      const url = new URL(window.location.href);
+    const url = new URL(window.location.href);
+
+    if (route === ROUTE_ADMIN) {
+      const normalizedPath = url.pathname.replace(/\/+$/, "") || "/";
+      if (normalizedPath !== "/admin" || url.hash) {
+        url.pathname = "/admin";
+        url.hash = "";
+        window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+      }
+      return;
+    }
+
+    if (url.pathname !== "/" || window.location.hash !== expectedHash) {
+      url.pathname = "/";
       url.hash = expectedHash;
       window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
     }
